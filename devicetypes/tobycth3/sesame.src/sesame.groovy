@@ -4,7 +4,7 @@
  *  Copyright 2017 Toby Harris
  *
  *  Author: toby@cth3.com
- *  Date: 6/13/2017
+ *  Date: 3/2/2018
  *
  *  Integrates SmartThings with Sesame door lock by Candy House
  */
@@ -23,6 +23,7 @@ input(name: "threshold", type: "number", title: "Lock timeout threshold", defaul
 		capability "Lock"
 		capability "Polling"
 		capability "Refresh"
+//		command "unlockHack"
 		attribute "api", "string"		
 		attribute "events", "string"
 	}
@@ -76,7 +77,8 @@ def updated() {
   }
   
 def init() {
-runEvery5Minutes(poll)
+	log.info "Setting up Schedule (every 5 minutes)..."
+	runEvery1Minute(poll)
   }
 
 
@@ -113,7 +115,7 @@ def unlock() {
 
 
 def locked() {
-	log.debug "Lock state is locked"
+	log.info "Lock state is locked"
 	
 	def locked_changed = device.currentValue("lock") != "locked"
 	sendEvent(name: 'lock', value: 'locked', displayed: locked_changed, isStateChange: locked_changed)
@@ -126,7 +128,7 @@ def locked() {
 }
 
 def unlocked() {
-	log.debug "Lock state is unlocked"
+	log.info "Lock state is unlocked"
 	
 	def unlocked_changed = device.currentValue("lock") != "unlocked"
 	sendEvent(name: 'lock', value: 'unlocked', displayed: unlocked_changed, isStateChange: unlocked_changed)
@@ -139,13 +141,13 @@ def unlocked() {
 }
 
 def api_ok() {
-	log.debug "API connection ok"
+	log.info "API connection ok"
 	def api_changed = device.currentValue("api") != "OK"
 	sendEvent(name: 'api', value: "OK", displayed: api_changed, isStateChange: api_changed)
 }
 
 def api_failed() {
-	log.debug "API connection failed"
+	log.info "API connection failed"
 	def api_changed = device.currentValue("api") != "FAILED"
 	sendEvent(name: 'api', value: "FAILED", displayed: api_changed, isStateChange: api_changed)
 	
@@ -223,7 +225,7 @@ def api(method, args = [], success = {}) {
 
 // Need to be logged in before this is called. So don't call this. Call api.
 def doRequest(uri, args, type, success) {
-	log.debug "Calling $type : $uri : $args"
+//	log.debug "Calling $type : $uri : $args"
 
 	def params = [
 		uri: uri,
@@ -300,3 +302,8 @@ private getSessionOk() {
 
 //	log.trace state.auth.uid
 }
+
+//def unlockHack() {
+//	log.warn "Assuming door is unlocked because contact is open"
+//	sendEvent(name: 'lock', value: "unlocked", displayed: true, isStateChange: true)
+//}
