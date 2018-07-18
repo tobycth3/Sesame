@@ -4,7 +4,7 @@
  *  Copyright 2017 Toby Harris
  *
  *  Author: toby@cth3.com
- *  Date: 3/2/2018
+ *  Date: 7/18/2018
  *
  *  Integrates SmartThings with Sesame door lock by Candy House
  */
@@ -23,7 +23,6 @@ input(name: "threshold", type: "number", title: "Lock timeout threshold", defaul
 		capability "Lock"
 		capability "Polling"
 		capability "Refresh"
-//		command "unlockHack"
 		attribute "api", "string"		
 		attribute "events", "string"
 	}
@@ -78,17 +77,20 @@ def updated() {
   
 def init() {
 	log.info "Setting up Schedule (every 5 minutes)..."
-	runEvery1Minute(poll)
+	runEvery5Minutes(poll)
   }
-
-
 
 def lock() {
 	log.info "Executing lock"
 	
+	def lockdelay = threshold * 60000
+	if (!state.lastlock) { state.lastlock = now() }
+	if ((now() - state.lastlock) >= lockdelay) {
+	state.lastlock = now()
+	
 	log.debug "Starting lock check timer"
-	def lockdelay = threshold * 60
-	runIn(lockdelay, doorlockcheck)
+	def timerdelay = threshold * 60
+	runIn(timerdelay, doorlockcheck)
 
 	api('lock', [type: lock]) { resp ->
 	//	log.trace "Lock response $response.status $response.data"
@@ -96,20 +98,33 @@ def lock() {
 	log.debug "Starting status check timer"
 	runIn(15, poll)		
 	}
+	}
+	else {
+	log.debug "Rate limiting API call - not enough time has elapsed"
+	}
 }
 
 def unlock() {
 	log.info "Executing unlock"
+	
+	def unlockdelay = threshold * 60000
+	if (!state.lastunlock) { state.lastunlock = now() }
+	if ((now() - state.lastunlock) >= unlockdelay) {
+	state.lastunlock = now()
 
 	log.debug "Starting lock check timer"
-	def lockdelay = threshold * 60
-	runIn(lockdelay, doorlockcheck)
+	def timerdelay = threshold * 60
+	runIn(timerdelay, doorlockcheck)
 
 	api('unlock', [type: unlock]) { resp ->
 	//	log.trace "Unlock response $response.status $response.data"
 
 	log.debug "Starting status check timer"
 	runIn(15, poll)	
+	}
+	}
+	else {
+	log.debug "Rate limiting API call - not enough time has elapsed"
 	}
 }
 
@@ -168,6 +183,11 @@ def doorlockcheck() {
 
 def poll(){
 	log.info "Executing 'status'"
+	
+	def polldelay = threshold * 60000
+	if (!state.lastpoll) { state.lastpoll = now() }
+	if ((now() - state.lastpoll) >= polldelay) {
+	state.lastpoll = now()
 
 	api('status', []) { resp ->
 	//	log.trace "Nickname: ${resp.data.nickname}"
@@ -197,7 +217,12 @@ def poll(){
 		def old_battery = device.currentValue("battery")
 		def battery_changed = new_battery != old_battery
 		sendEvent(name: 'battery', value: new_battery, unit:"%", displayed: battery_changed, isStateChange: battery_changed)	
- }
+	}
+}
+	else {
+	log.debug "Rate limiting API call - not enough time has elapsed"
+		// runIn(polldelay, poll)
+	}
 }
   
   
@@ -302,8 +327,3 @@ private getSessionOk() {
 
 //	log.trace state.auth.uid
 }
-
-//def unlockHack() {
-//	log.warn "Assuming door is unlocked because contact is open"
-//	sendEvent(name: 'lock', value: "unlocked", displayed: true, isStateChange: true)
-//}
