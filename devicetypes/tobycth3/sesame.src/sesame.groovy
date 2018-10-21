@@ -1,10 +1,10 @@
 /**
  *  Sesame
  *
- *  Copyright 2017 Toby Harris
+ *  Copyright 2018 Toby Harris
  *
  *  Author: toby@cth3.com
- *  Date: 3/2/2018
+ *  Date: 10/20/2018
  *
  *  Integrates SmartThings with Sesame door lock by Candy House
  */
