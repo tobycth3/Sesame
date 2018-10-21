@@ -78,7 +78,7 @@ def updated() {
 def init() {
 	log.info "Setting up Schedule (every 5 minutes)..."
 	login()
-	runEvery1Minute(poll)
+	runEvery5Minute(poll)
 }
 
 
