@@ -4,7 +4,7 @@
  *  Copyright 2018 Toby Harris
  *
  *  Author: toby@cth3.com
- *  Date: 10/20/2018
+ *  Date: 10/24/2018
  *
  *  Integrates SmartThings with Sesame door lock by Candy House
  */
@@ -16,7 +16,7 @@ preferences {
 }
   
   
-metadata {
+ metadata {
 	definition (name: "Sesame", namespace: "tobycth3", author: "Toby Harris") {
 		capability "Battery"
 		capability "Lock"
@@ -28,7 +28,7 @@ metadata {
 	}
 
 	
-	tiles(scale: 2) {
+tiles(scale: 2) {
 		multiAttributeTile(name:"toggle", type: "generic", width: 6, height: 4){
 			tileAttribute ("device.lock", key: "PRIMARY_CONTROL") {
                 attributeState "unknown", label:"unknown", action:"lock.lock", icon:"st.locks.lock.unknown", backgroundColor:"#ff3333", nextState:"locking"
@@ -67,13 +67,13 @@ metadata {
 
 
 def installed() {
-	init()
-}
+  init()
+  }
 
 def updated() {
-	unschedule()
-	init()
-}
+  unschedule()
+  init()
+  }
   
 def init() {
 	log.info "Setting up Schedule (every 5 minutes)..."
@@ -93,8 +93,8 @@ def lock() {
 	api('lock', '{"command":"lock"}') { resp ->
 		//	log.trace "Lock response $response.status $response.data"
 
-		log.debug "Starting status check timer"
-		runIn(15, poll)		
+	log.debug "Starting status check timer"
+	runIn(15, poll)		
 	}
 }
 
@@ -108,8 +108,8 @@ def unlock() {
 	api('unlock', '{"command":"unlock"}') { resp ->
 		//	log.trace "Unlock response $response.status $response.data"
 
-		log.debug "Starting status check timer"
-		runIn(15, poll)	
+	log.debug "Starting status check timer"
+	runIn(15, poll)	
 	}
 }
 
@@ -167,32 +167,9 @@ def doorlockcheck() {
 
 
 def poll(){
-	if (!state.auth) {
-	    return
-    }
-    
-    def polldelay = threshold * 60000
-	if (!state.lastpoll) { state.lastpoll = now() }
-	if ((now() - state.lastpoll) >= polldelay) {
-        state.lastpoll = now()
+	log.info "Executing 'status'"
 
-        log.info "Executing 'poll' on deviceID"
-
-        api('deviceID', []) { resp ->
-            log.trace "Device ID: ${resp.data[0].device_id}"
-
-            //	log.trace "Nickname: ${resp.data.nickname}"
-            def new_nickname = resp.data[0].nickname
-            def old_nickname = device.currentValue("nickname")
-            def nickname_changed = new_nickname != old_nickname
-            sendEvent(name: 'nickname', value: new_nickname, displayed: nickname_changed, isStateChange: nickname_changed)	
-
-        }
-
-        log.info "Executing 'poll' on status"
-
-        api('status', []) { resp ->
-
+	api('status', []) { resp ->
             //	log.trace "Locked: ${resp.data.locked}"
             def is_locked = resp.data.locked
             if (is_locked) { 
@@ -201,32 +178,34 @@ def poll(){
             else if (!is_locked) { 
                 unlocked()
             }
-            else {
-                doorlockcheck()
-            }
+		else {
+		doorlockcheck()
+		}
 
-        //	log.trace "API: ${resp.data.responsive}"
-            def new_api = resp.data.responsive
-            if (new_api) { api_ok() }
-            else { api_failed() }
-
-
-        //	log.trace "Battery: ${resp.data.battery}"
-            def new_battery = resp.data.battery
-            def old_battery = device.currentValue("battery")
-            def battery_changed = new_battery != old_battery
-            sendEvent(name: 'battery', value: new_battery, unit:"%", displayed: battery_changed, isStateChange: battery_changed)	
-        }
-    } 
-    else {
-		log.debug "Rate limiting API call - not enough time has elapsed"
-		// runIn(polldelay, poll)
-	}
+		
+	//	log.trace "API: ${resp.data.responsive}"
+		def new_api = resp.data.responsive
+		if (new_api) { api_ok() }
+		else { api_failed() }
+	
+		
+	//	log.trace "Battery: ${resp.data.battery}"
+		def new_battery = resp.data.battery
+		def old_battery = device.currentValue("battery")
+		def battery_changed = new_battery != old_battery
+		sendEvent(name: 'battery', value: new_battery, unit:"%", displayed: battery_changed, isStateChange: battery_changed)	
+ }
 }
   
   
 def api(method, args = [], success = {}) {
 	// log.info "Executing 'api'"
+
+	if(!sessionOk) {
+		log.debug "Need to login"
+		login()
+		return
+	}
 
 	def methods = [
 		'deviceID': [uri: "https://api.candyhouse.co/public/sesames", type: 'get'],
@@ -241,6 +220,7 @@ def api(method, args = [], success = {}) {
 	doRequest(request.uri, args, request.type, success)
 }
 
+// Need to be logged in before this is called. So don't call this. Call api.
 def doRequest(uri, args, type, success) {
 	log.debug "Calling $type : $uri : $args : $state"
 
@@ -252,7 +232,7 @@ def doRequest(uri, args, type, success) {
 		]
 	]
 
-	// log.trace params
+//	log.trace params
 
 	try {
 		if (type == 'post') {
@@ -264,8 +244,8 @@ def doRequest(uri, args, type, success) {
 
 	} catch (e) {
 		log.debug "something went wrong: $e"
- 		// log out session	
-		logout()
+ 	// log out session	
+	logout()
 	}
 }
 
@@ -282,10 +262,27 @@ def deviceID() {
 	api('deviceID', []) { resp ->
 		// log.trace "Device ID: ${resp.data[0].device_id}"
 		state.deviceID = resp.data[0].device_id
+
+	//	log.trace "Nickname: ${resp.data.nickname}"
+		def new_nickname = resp.data[0].nickname
+		def old_nickname = device.currentValue("nickname")
+		def nickname_changed = new_nickname != old_nickname
+		sendEvent(name: 'nickname', value: new_nickname, displayed: nickname_changed, isStateChange: nickname_changed)
  	}
 }
 
 def logout() { 
 	log.info "Executing 'logout'"
 	state.auth = false		
+}
+
+private getSessionOk() {
+	def result = true
+	if (!state.auth) {
+	log.debug "No state.auth"
+	result = false
+	}
+	result
+
+//	log.trace state.auth.uid
 }
