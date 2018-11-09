@@ -222,7 +222,7 @@ def api(method, args = [], success = {}) {
 
 // Need to be logged in before this is called. So don't call this. Call api.
 def doRequest(uri, args, type, success) {
-	log.debug "Calling $type : $uri : $args : $state"
+	// log.debug "Calling $type : $uri : $args : $state"
 
 	def params = [
 		uri: uri,
